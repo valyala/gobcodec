@@ -1,6 +1,7 @@
 package gobcodec
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -34,9 +35,9 @@ func BenchmarkDecodeInt(b *testing.B) {
 }
 
 type benchStruct struct {
-	N int
-	S string
-	D []byte
+	FooBar    int
+	StrFoobar string
+	Data      []byte
 }
 
 func BenchmarkEncodeStruct(b *testing.B) {
@@ -46,14 +47,28 @@ func BenchmarkEncodeStruct(b *testing.B) {
 	var buf []byte
 	var err error
 	x := benchStruct{
-		S: "foobar",
-		D: []byte("aaaa"),
+		StrFoobar: "foobar",
+		Data:      []byte("aaaa"),
 	}
 
 	for i := 0; i < b.N; i++ {
-		x.N = i;
+		x.FooBar = i
 		if buf, err = c.Encode(x, buf); err != nil {
 			b.Fatalf("Error when encoding %+v: [%s]", x, err)
+		}
+	}
+}
+
+func BenchmarkEncodeStructJson(b *testing.B) {
+	x := benchStruct{
+		StrFoobar: "foobar",
+		Data:      []byte("aaaa"),
+	}
+
+	for i := 0; i < b.N; i++ {
+		x.FooBar = i
+		if _, err := json.Marshal(x); err != nil {
+			b.Fatalf("Error when marshaling %+v: [%s]", x, err)
 		}
 	}
 }
@@ -63,8 +78,8 @@ func BenchmarkDecodeStruct(b *testing.B) {
 	c.Register(benchStruct{})
 
 	x := benchStruct{
-		S: "aaaklka",
-		D: []byte("aalakmk"),
+		StrFoobar: "aaaklka",
+		Data:      []byte("aalakmk"),
 	}
 	buf, err := c.Encode(x, nil)
 	if err != nil {
@@ -75,6 +90,24 @@ func BenchmarkDecodeStruct(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if _, err = c.Decode(&y, buf); err != nil {
 			b.Fatalf("Error when decoding struct: [%s]", err)
+		}
+	}
+}
+
+func BenchmarkDecodeStructJson(b *testing.B) {
+	x := benchStruct{
+		StrFoobar: "aaaklka",
+		Data:      []byte("aalakmk"),
+	}
+	buf, err := json.Marshal(x)
+	if err != nil {
+		b.Fatalf("Error when marshaling %+v: [%s]", x, err)
+	}
+
+	var y benchStruct
+	for i := 0; i < b.N; i++ {
+		if err = json.Unmarshal(buf, &y); err != nil {
+			b.Fatalf("Error when unmarshaling struct : [%s]", err)
 		}
 	}
 }
