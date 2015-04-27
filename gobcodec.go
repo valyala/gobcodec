@@ -1,20 +1,37 @@
 package gobcodec
 
 import (
-	"bytes"
 	"encoding/gob"
 	"sync"
 )
 
+type buffer struct {
+	buf []byte
+	n   int
+}
+
+func (b *buffer) Read(p []byte) (int, error) {
+	n := copy(p, b.buf)
+	b.buf = b.buf[n:]
+	return n, nil
+}
+
+func (b *buffer) Write(p []byte) (int, error) {
+	b.buf = append(b.buf[:b.n], p...)
+	n := len(p)
+	b.n += n
+	return n, nil
+}
+
 type Codec struct {
 	l sync.Mutex
-	b *bytes.Buffer
+	b *buffer
 	e *gob.Encoder
 	d *gob.Decoder
 }
 
 func NewCodec() *Codec {
-	b := &bytes.Buffer{}
+	b := &buffer{}
 	return &Codec{
 		b: b,
 		e: gob.NewEncoder(b),
@@ -24,6 +41,7 @@ func NewCodec() *Codec {
 
 func (c *Codec) Register(v interface{}) error {
 	c.l.Lock()
+	c.b.n = 0
 	if err := c.e.Encode(v); err != nil {
 		return returnErr(c, err)
 
@@ -38,34 +56,28 @@ func (c *Codec) Register(v interface{}) error {
 
 func (c *Codec) Encode(v interface{}, dst []byte) ([]byte, error) {
 	c.l.Lock()
+	c.b.buf = dst
+	c.b.n = 0
 	if err := c.e.Encode(v); err != nil {
 		return dst, returnErr(c, err)
 	}
-	src := c.b.Bytes()
-	srcLen := len(src)
-	if srcLen > cap(dst) {
-		dst = make([]byte, srcLen)
-	}
-	copy(dst, src)
-	c.b.Reset()
+	dst = c.b.buf
 	c.l.Unlock()
 	return dst, nil
 }
 
 func (c *Codec) Decode(v interface{}, src []byte) ([]byte, error) {
 	c.l.Lock()
-	c.b.Write(src)
+	c.b.buf = src
 	if err := c.d.Decode(v); err != nil {
 		return src, returnErr(c, err)
 	}
-	n := c.b.Len()
-	c.b.Reset()
+	src = c.b.buf
 	c.l.Unlock()
-	return src[len(src)-n:], nil
+	return src, nil
 }
 
 func returnErr(c *Codec, err error) error {
-	c.b.Reset()
 	c.l.Unlock()
 	return err
 }
