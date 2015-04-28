@@ -50,6 +50,7 @@ func (c *Codec) Register(v interface{}) error {
 	if err := c.d.Decode(z); err != nil {
 		return returnErr(c, err)
 	}
+	c.b.buf = nil
 	c.l.Unlock()
 	return nil
 }
@@ -62,6 +63,7 @@ func (c *Codec) Encode(v interface{}, dst []byte) ([]byte, error) {
 		return dst, returnErr(c, err)
 	}
 	dst = c.b.buf
+	c.b.buf = nil
 	c.l.Unlock()
 	return dst, nil
 }
@@ -73,6 +75,7 @@ func (c *Codec) Decode(v interface{}, src []byte) ([]byte, error) {
 		return src, returnErr(c, err)
 	}
 	src = c.b.buf
+	c.b.buf = nil
 	c.l.Unlock()
 	return src, nil
 }
