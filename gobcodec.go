@@ -62,7 +62,7 @@ func (c *Codec) Encode(v interface{}, dst []byte) ([]byte, error) {
 	if err := c.e.Encode(v); err != nil {
 		return dst, returnErr(c, err)
 	}
-	dst = c.b.buf
+	dst = c.b.buf[:c.b.n]
 	c.b.buf = nil
 	c.l.Unlock()
 	return dst, nil
